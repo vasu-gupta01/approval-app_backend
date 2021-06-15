@@ -66,6 +66,7 @@ exports.signin = (req, res) => {
         firstname: approver.firstname,
         lastname: approver.lastname,
         username: approver.username,
+        role: approver.role,
         accessToken: token,
       });
     });

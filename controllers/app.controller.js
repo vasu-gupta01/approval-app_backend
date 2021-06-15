@@ -41,7 +41,6 @@ exports.getAllApprovalRequests = (req, res) => {
   // ApprovalRequests.find({}).then((data) => res.json(data));
   if (req.headers) {
     var decoded = jwt.verify(req.headers["x-access-token"], config.secret);
-    console.log(decoded);
 
     switch (decoded.role.level) {
       case 1:
@@ -50,6 +49,9 @@ exports.getAllApprovalRequests = (req, res) => {
         });
         break;
       case 2:
+        getApprovalRequestsfromDB(req, res, {});
+        break;
+      case 3:
         getApprovalRequestsfromDB(req, res, {});
         break;
       default:
@@ -109,7 +111,15 @@ exports.getApprovalRequest = (req, res) => {
 
           res.status(200).send(send_data);
         } else {
-          res.status(401).send({ message: "No approver found" });
+          const send_data = {
+            filled_by: data.filled_by,
+            fields: data.fields,
+            form: data.form,
+            approval: null,
+            date_submitted: data.date_submitted,
+            department: data.department,
+          };
+          res.status(200).send(send_data);
         }
       }
     });

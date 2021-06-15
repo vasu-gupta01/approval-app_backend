@@ -1,5 +1,5 @@
 const db = require("../models");
-const Approvers = db.approvers;
+const Approvers = db.approverModels.Approvers;
 
 checkDuplicateUsername = (req, res, next) => {
   Approvers.findOne({
