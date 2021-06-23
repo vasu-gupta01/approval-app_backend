@@ -40,7 +40,13 @@ module.exports = function (app) {
     [authJwt.verifyToken],
     controller.updateApprover
   );
-
+  
+  app.post(
+    "/api/role/update",
+    [authJwt.verifyToken],
+    controller.updateRole
+  );
+	
   app.post("/api/createrole", [authJwt.verifyToken], controller.createRole);
 
   app.post(
