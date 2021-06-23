@@ -33,6 +33,22 @@ module.exports = function (app) {
 
   app.get("/api/getroles", controller.getRoles);
 
+  app.get("/api/getdepartments", controller.getDepartments);
+
+  app.post(
+    "/api/approver/update",
+    [authJwt.verifyToken],
+    controller.updateApprover
+  );
+
+  app.post("/api/createrole", [authJwt.verifyToken], controller.createRole);
+
+  app.post(
+    "/api/createdepartment",
+    [authJwt.verifyToken],
+    controller.createDepartment
+  );
+
   app.post(
     "/api/updateapproval",
     [authJwt.verifyToken],

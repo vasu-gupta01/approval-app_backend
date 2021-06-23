@@ -2,12 +2,16 @@ const jwt = require("jsonwebtoken");
 const db = require("../models");
 const config = require("../config/auth.config");
 const GmailService = require("../services/gmail-service");
+const { resolveContent } = require("nodemailer/lib/shared");
 const Forms = db.formModels.Forms;
 const Fields = db.formModels.FieldTypes;
 const ApprovalRequests = db.approvalModels.ApprovalRequests;
 const Approvals = db.approvalModels.Approvals;
 const Approvers = db.approverModels.Approvers;
 const Roles = db.approverModels.Roles;
+const Departments = db.approverModels.Departments;
+
+var bcrypt = require("bcryptjs");
 
 exports.getAllForms = (req, res) => {
   Forms.find({}).then((data) => res.json(data));
@@ -275,4 +279,106 @@ exports.sendmail = (req, res) => {
       res.status(200).send({ message: "Email sent" });
     }
   });
+};
+
+exports.getDepartments = (req, res) => {
+  Departments.find({}).exec((err, departments) => {
+    if (err) {
+      res.status(500).send({ message: err });
+    } else {
+      res.status(200).send(departments);
+    }
+  });
+};
+
+exports.createDepartment = (req, res) => {
+  if (req.body.name) {
+    Departments.create(req.body, (check_keys = false))
+      .then(() => {
+        res.status(200).send({ message: "Department created successfully!" });
+      })
+      .catch((e) => {
+        res.status(500).send({ message: e });
+      });
+  } else {
+    res.status(500).send({ message: "Invalid data!" });
+  }
+};
+
+exports.createRole = (req, res) => {
+  if (req.body.name && req.body.level) {
+    Roles.create(req.body, (check_keys = false))
+      .then(() => {
+        res.status(200).send({ message: "Role created successfully!" });
+      })
+      .catch((e) => {
+        res.status(500).send({ message: e });
+      });
+  } else {
+    res.status(500).send({ message: "Invalid data!" });
+  }
+};
+
+exports.updateRole = (req, res) => {
+  if (req.body.id) {
+    Roles.findByIdAndUpdate(
+      req.body.id,
+      {
+        $set: {
+          description: req.body.description,
+          level: req.body.level,
+          name: req.body.name,
+          department: req.body.department,
+        },
+      },
+      (err, resp) => {
+        if (err) {
+          res.status(500).send({ message: "Unable to update role!" });
+        } else {
+          res.status(200).send({ message: "Role successfully updated!" });
+        }
+      }
+    );
+  } else {
+    res.status(500).send({ message: "Invalid data!" });
+  }
+};
+
+exports.updateApprover = (req, res) => {
+  if (req.body.id) {
+    let body = {};
+    if (req.body.password && req.body.password != "") {
+      console.log(req.body.password);
+      body = {
+        username: req.body.username,
+        firstname: req.body.firstname,
+        lastname: req.body.lastname,
+        password: bcrypt.hashSync(req.body.password, 8),
+        role: req.body.role,
+      };
+    } else {
+      body = {
+        username: req.body.username,
+        firstname: req.body.firstname,
+        lastname: req.body.lastname,
+        role: req.body.role,
+      };
+    }
+
+    Approvers.findByIdAndUpdate(
+      req.body.id,
+      {
+        $set: body,
+      },
+      (err, resp) => {
+        if (err) {
+          res.status(500).send({ message: "Unable to update user!" });
+        } else {
+          res.status(200).send({ message: "User successfully updated!" });
+        }
+      }
+    );
+  } else {
+    res.status(500).send({ message: "Invalid data!" });
+  }
 };
