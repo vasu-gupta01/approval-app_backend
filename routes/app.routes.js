@@ -31,6 +31,8 @@ module.exports = function (app) {
 
   app.get("/api/getapprovers", controller.getApprovers);
 
+  app.get("/api/getroles", controller.getRoles);
+
   app.post(
     "/api/updateapproval",
     [authJwt.verifyToken],
@@ -46,4 +48,7 @@ module.exports = function (app) {
   app.post("/api/sendform", controller.sendForm);
 
   app.post("/api/getform", controller.getForm);
+
+  // TEMPORARY
+  app.post("/api/mail/send", controller.sendmail);
 };

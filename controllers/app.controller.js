@@ -1,18 +1,40 @@
 const jwt = require("jsonwebtoken");
 const db = require("../models");
 const config = require("../config/auth.config");
+const GmailService = require("../services/gmail-service");
 const Forms = db.formModels.Forms;
 const Fields = db.formModels.FieldTypes;
 const ApprovalRequests = db.approvalModels.ApprovalRequests;
 const Approvals = db.approvalModels.Approvals;
 const Approvers = db.approverModels.Approvers;
+const Roles = db.approverModels.Roles;
 
 exports.getAllForms = (req, res) => {
   Forms.find({}).then((data) => res.json(data));
 };
 
+exports.getRoles = (req, res) => {
+  Roles.find({}).exec((err, roles) => {
+    if (err) {
+      res.status(500).send({ message: err });
+    } else {
+      res.status(200).send(roles);
+    }
+  });
+};
+
 exports.getApprovers = (req, res) => {
-  Approvers.find({}).then((data) => res.json(data));
+  // Approvers.find({}).then((data) => res.json(data));
+
+  Approvers.find({})
+    .populate("role")
+    .exec((err, approvers) => {
+      if (err) {
+        res.status(500).send({ message: err });
+      } else {
+        res.status(200).send(approvers);
+      }
+    });
 };
 
 exports.getForm = (req, res) => {
@@ -180,6 +202,7 @@ exports.sendForm = (req, res) => {
       ApprovalRequests.create(body, (check_keys = false)).then(() => {
         console.log(return_val);
         res.status(200).send({ message: "Submitted request successfully!" });
+        // ** send mail here **
       });
     })
     .catch((e) => {
@@ -234,4 +257,22 @@ let findFieldTypes = async (form_fields) => {
       return return_arr;
     } catch (e) {}
   }
+};
+
+exports.sendmail = (req, res) => {
+  let mailOptions = {
+    from: "aspenforms@ke.betashelys.com",
+    to: "robertm@ke.betashelys.com",
+    subject: "Nodemailer",
+    html: "<a href=`#`>Click here</a> to review approval request",
+  };
+
+  GmailService.transporter.sendMail(mailOptions, (err, data) => {
+    if (err) {
+      console.log(err);
+      res.status(500).send({ message: "Error sending email" });
+    } else {
+      res.status(200).send({ message: "Email sent" });
+    }
+  });
 };
