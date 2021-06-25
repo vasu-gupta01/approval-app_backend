@@ -40,6 +40,8 @@ const ApprovalRequestsSchema = new Schema({
   form: { type: Schema.Types.ObjectId, ref: "forms" },
   approval: [{ type: Schema.Types.ObjectId, ref: "approvals" }],
   date_submitted: { type: Date, default: Date.now },
+  final_approval: { type: Number, default: 0 },
+  approval_date: { type: Date, default: null },
 });
 
 // const ApprovalRequestsSchema = new Schema({

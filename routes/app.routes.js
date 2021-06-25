@@ -29,6 +29,11 @@ module.exports = function (app) {
     controller.getAllApprovalRequests
   );
 
+  app.post(
+    "/api/dashapprovalrequests",
+    controller.getDashboardApprovalRequests
+  );
+
   app.get("/api/getapprovers", controller.getApprovers);
 
   app.get("/api/getroles", controller.getRoles);
@@ -40,13 +45,9 @@ module.exports = function (app) {
     [authJwt.verifyToken],
     controller.updateApprover
   );
-  
-  app.post(
-    "/api/role/update",
-    [authJwt.verifyToken],
-    controller.updateRole
-  );
-	
+
+  app.post("/api/role/update", [authJwt.verifyToken], controller.updateRole);
+
   app.post("/api/createrole", [authJwt.verifyToken], controller.createRole);
 
   app.post(

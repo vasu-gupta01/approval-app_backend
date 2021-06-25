@@ -31,6 +31,7 @@ exports.signin = (req, res) => {
   })
     .select("+password")
     .populate("role")
+    .populate({ path: "role", populate: { path: "department" } })
     .exec((err, approver) => {
       if (err) {
         res.status(500).send({ message: err });
@@ -41,6 +42,8 @@ exports.signin = (req, res) => {
       if (!approver) {
         return res.status(404).send({ message: "Approver not found." });
       }
+
+      console.log(approver.role);
 
       var passwordIsValid = bcrypt.compareSync(
         req.body.password,

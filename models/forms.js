@@ -16,6 +16,7 @@ const FieldsSchema = new Schema({
 const FormsSchema = new Schema({
   fields: [FieldsSchema],
   name: String,
+  finals: { type: Schema.Types.ObjectId, ref: "approvers" },
 });
 
 const Forms = mongoose.model("forms", FormsSchema);

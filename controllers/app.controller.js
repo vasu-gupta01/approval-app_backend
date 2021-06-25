@@ -63,6 +63,26 @@ exports.getForm = (req, res) => {
   });
 };
 
+exports.getDashboardApprovalRequests = (req, res) => {
+  ApprovalRequests.find({
+    date_submitted: {
+      $gte: req.body.min_date,
+      $lt: req.body.max_date,
+    },
+  })
+    .select(
+      "final_approval filled_by form department date_submitted approval_date"
+    )
+    .populate("form")
+    .exec((err, approvals) => {
+      if (err) {
+        res.status(500).send({ message: err });
+      } else {
+        res.status(200).send(approvals);
+      }
+    });
+};
+
 exports.getAllApprovalRequests = (req, res) => {
   // ApprovalRequests.find({}).then((data) => res.json(data));
   if (req.headers) {
@@ -71,7 +91,7 @@ exports.getAllApprovalRequests = (req, res) => {
     switch (decoded.role.level) {
       case 1:
         getApprovalRequestsfromDB(req, res, {
-          department: decoded.role.department,
+          department: decoded.role.department.name,
         });
         break;
       case 2:
@@ -153,8 +173,9 @@ exports.getApprovalRequest = (req, res) => {
 
 exports.updateApproval = (req, res) => {
   ApprovalRequests.findOne({ _id: req.body.request_id })
-    .select("approval")
+    .select("approval form final_approval")
     .populate("approval")
+    .populate("form")
     .exec((err, request) => {
       if (err) {
         res.status(500).send({ message: err });
@@ -179,7 +200,34 @@ exports.updateApproval = (req, res) => {
                     .status(401)
                     .send({ message: "Unable to update approval" });
                 } else {
-                  res.status(200).send({ message: "Approval Updated!" });
+                  // update if final
+                  const isInArr = request.form.finals.some((a) => {
+                    return a.equals(app.approver);
+                  });
+                  if (request.final_approval == 0 && isInArr) {
+                    ApprovalRequests.findOneAndUpdate(
+                      { _id: req.body.request_id },
+                      {
+                        $set: {
+                          final_approval: req.body.action,
+                          approval_date: now,
+                        },
+                      },
+                      (rErr, rResp) => {
+                        if (err) {
+                          res
+                            .status(401)
+                            .send({ message: "Unable to update approval" });
+                        } else {
+                          res
+                            .status(200)
+                            .send({ message: "Approval Updated!" });
+                        }
+                      }
+                    );
+                  } else {
+                    res.status(200).send({ message: "Approval Updated!" });
+                  }
                 }
               }
             );
@@ -203,9 +251,22 @@ exports.sendForm = (req, res) => {
         department: req.body.department,
       };
 
-      ApprovalRequests.create(body, (check_keys = false)).then(() => {
-        console.log(return_val);
+      ApprovalRequests.create(body, (check_keys = false)).then((resp) => {
         res.status(200).send({ message: "Submitted request successfully!" });
+
+        getApproverEmails(resp.approval).then((ret_approvers) => {
+          console.log(ret_approvers);
+          for (let a of ret_approvers) {
+            if (a) {
+              console.log("sending email to " + a);
+              sendMail(
+                a,
+                "AspenForms: Approval Requested",
+                "localhost:3000/form/" + resp._id
+              );
+            }
+          }
+        });
         // ** send mail here **
       });
     })
@@ -228,13 +289,12 @@ let createApprovals = async (approvals) => {
 
         await Approvals.create(body, (check_keys = false)).then((appr) => {
           return_approvals.push(appr._id);
+          // Send mail
         });
       }
 
       return return_approvals;
-    } catch (e) {
-      console.log(e);
-    }
+    } catch (e) {}
   } else {
     throw new Error("Approvals empty");
   }
@@ -270,6 +330,52 @@ exports.sendmail = (req, res) => {
     subject: "Nodemailer",
     html: "<a href=`#`>Click here</a> to review approval request",
   };
+
+  GmailService.transporter.sendMail(mailOptions, (err, data) => {
+    if (err) {
+      console.log(err);
+      res.status(500).send({ message: "Error sending email" });
+    } else {
+      res.status(200).send({ message: "Email sent" });
+    }
+  });
+};
+
+let getApproverEmails = async (approval_request) => {
+  let return_val = [];
+
+  try {
+    for (let a of approval_request) {
+      console.log(a);
+      let action = await Approvals.find({ _id: a })
+        .select("approver")
+        .populate("approver")
+        .exec();
+
+      // && email enabled
+      if (action[0].approver.email) {
+        return_val.push(action[0].approver.email);
+      }
+    }
+
+    return return_val;
+  } catch (e) {
+    return e;
+  }
+};
+
+let sendMail = async (receiver, subject, link) => {
+  let mailOptions = {
+    from: "aspenforms@ke.betashelys.com",
+    to: receiver,
+    subject: subject,
+    html:
+      "<a href=`http://" + link + "`>Click here</a> to review approval request",
+  };
+
+  console.log(
+    "<a href=`http://" + link + "`>Click here</a> to review approval request"
+  );
 
   GmailService.transporter.sendMail(mailOptions, (err, data) => {
     if (err) {
