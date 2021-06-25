@@ -23,7 +23,7 @@ module.exports = function (app) {
 
   app.get("/api/getforms", controller.getAllForms);
 
-  app.get(
+  app.post(
     "/api/getapprovalrequests",
     [authJwt.verifyToken],
     controller.getAllApprovalRequests

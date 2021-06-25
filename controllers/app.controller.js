@@ -92,13 +92,27 @@ exports.getAllApprovalRequests = (req, res) => {
       case 1:
         getApprovalRequestsfromDB(req, res, {
           department: decoded.role.department.name,
+          date_submitted: {
+            $gte: req.body.min_date,
+            $lt: req.body.max_date,
+          },
         });
         break;
       case 2:
-        getApprovalRequestsfromDB(req, res, {});
+        getApprovalRequestsfromDB(req, res, {
+          date_submitted: {
+            $gte: req.body.min_date,
+            $lt: req.body.max_date,
+          },
+        });
         break;
       case 3:
-        getApprovalRequestsfromDB(req, res, {});
+        getApprovalRequestsfromDB(req, res, {
+          date_submitted: {
+            $gte: req.body.min_date,
+            $lt: req.body.max_date,
+          },
+        });
         break;
       default:
         res.status(401).send({ message: "Unauthorized!" });
