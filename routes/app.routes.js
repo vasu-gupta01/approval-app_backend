@@ -23,6 +23,8 @@ module.exports = function (app) {
 
   app.get("/api/getforms", controller.getAllForms);
 
+  app.get("/api/getfieldtypes", controller.getFieldTypes);
+
   app.post(
     "/api/getapprovalrequests",
     [authJwt.verifyToken],
@@ -35,6 +37,8 @@ module.exports = function (app) {
   );
 
   app.get("/api/getapprovers", controller.getApprovers);
+
+  app.get("/api/getapproverswithoutmod", controller.getApproversWithoutMod);
 
   app.get("/api/getroles", controller.getRoles);
 
@@ -67,6 +71,10 @@ module.exports = function (app) {
     [authJwt.verifyToken],
     controller.getApprovalRequest
   );
+
+  app.post("/api/updateform", [authJwt.verifyToken], controller.updateForm);
+
+  app.post("/api/createform", [authJwt.verifyToken], controller.createForm);
 
   app.post("/api/sendform", controller.sendForm);
 

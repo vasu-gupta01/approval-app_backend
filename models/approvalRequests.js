@@ -34,6 +34,7 @@ const FieldsSchema = new Schema({
 });
 
 const ApprovalRequestsSchema = new Schema({
+  serial_number: String,
   fields: [FieldsSchema],
   filled_by: String,
   department: String,

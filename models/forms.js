@@ -7,7 +7,6 @@ const FieldTypesSchema = new Schema({
 });
 
 const FieldsSchema = new Schema({
-  _id: mongoose.ObjectId,
   name: String,
   required: Boolean,
   type: { type: Schema.Types.ObjectId, ref: "FieldTypes" },
@@ -16,7 +15,9 @@ const FieldsSchema = new Schema({
 const FormsSchema = new Schema({
   fields: [FieldsSchema],
   name: String,
-  finals: { type: Schema.Types.ObjectId, ref: "approvers" },
+  finals: [{ type: Schema.Types.ObjectId, ref: "approvers" }],
+  date_created: { type: Date, default: Date.now },
+  counter: Number,
 });
 
 const Forms = mongoose.model("forms", FormsSchema);

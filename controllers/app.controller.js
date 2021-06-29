@@ -14,7 +14,16 @@ const Departments = db.approverModels.Departments;
 var bcrypt = require("bcryptjs");
 
 exports.getAllForms = (req, res) => {
-  Forms.find({}).then((data) => res.json(data));
+  // Forms.find({}).then((data) => res.json(data));
+  Forms.find({})
+    .populate("finals")
+    .exec((err, resp) => {
+      if (err) {
+        res.status(500).send({ message: err });
+      } else {
+        res.status(200).send(resp);
+      }
+    });
 };
 
 exports.getRoles = (req, res) => {
@@ -36,6 +45,20 @@ exports.getApprovers = (req, res) => {
       if (err) {
         res.status(500).send({ message: err });
       } else {
+        res.status(200).send(approvers);
+      }
+    });
+};
+
+exports.getApproversWithoutMod = (req, res) => {
+  Approvers.find({ username: { $ne: "mod" } })
+    .populate("role")
+    .exec((err, approvers) => {
+      if (err) {
+        console.log(err);
+        res.status(500).send({ message: err });
+      } else {
+        console.log("success");
         res.status(200).send(approvers);
       }
     });
@@ -219,8 +242,8 @@ exports.updateApproval = (req, res) => {
                     return a.equals(app.approver);
                   });
                   if (request.final_approval == 0 && isInArr) {
-                    ApprovalRequests.findOneAndUpdate(
-                      { _id: req.body.request_id },
+                    ApprovalRequests.findByIdAndUpdate(
+                      req.body.request_id,
                       {
                         $set: {
                           final_approval: req.body.action,
@@ -268,6 +291,10 @@ exports.sendForm = (req, res) => {
       ApprovalRequests.create(body, (check_keys = false)).then((resp) => {
         res.status(200).send({ message: "Submitted request successfully!" });
 
+        Forms.findByIdAndUpdate(req.body.form_id, {
+          $inc: { counter: 1 },
+        }).exec();
+
         getApproverEmails(resp.approval).then((ret_approvers) => {
           console.log(ret_approvers);
           for (let a of ret_approvers) {
@@ -276,7 +303,7 @@ exports.sendForm = (req, res) => {
               sendMail(
                 a,
                 "AspenForms: Approval Requested",
-                "localhost:3000/form/" + resp._id
+                process.env.APP_BASE_URL + "/form/" + resp._id
               );
             }
           }
@@ -500,5 +527,44 @@ exports.updateApprover = (req, res) => {
     );
   } else {
     res.status(500).send({ message: "Invalid data!" });
+  }
+};
+
+exports.getFieldTypes = (req, res) => {
+  Fields.find({}).exec((err, resp) => {
+    if (err) {
+      res.status(500).send({ message: err });
+    } else {
+      res.status(200).send(resp);
+    }
+  });
+};
+
+exports.updateForm = (req, res) => {
+  Forms.findByIdAndUpdate(req.body.id, {
+    $set: {
+      name: req.body.name,
+      fields: req.body.fields,
+    },
+  }).exec((err, resp) => {
+    if (err) {
+      res.status(500).send({ message: err });
+    } else {
+      res.status(200).send("Form updated!");
+    }
+  });
+};
+
+exports.createForm = (req, res) => {
+  if (req.body) {
+    Forms.create(req.body, (check_keys = false))
+      .then(() => {
+        res.status(200).send("Form creation successful!");
+      })
+      .catch((e) => {
+        res.status(500).send({ message: e });
+      });
+  } else {
+    res.status(500).send("Invalid Data!");
   }
 };
