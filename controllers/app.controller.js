@@ -418,14 +418,14 @@ let sendMail = async (receiver, subject, link) => {
     "<a href=`http://" + link + "`>Click here</a> to review approval request"
   );
 
-  GmailService.transporter.sendMail(mailOptions, (err, data) => {
-    if (err) {
-      console.log(err);
-      res.status(500).send({ message: "Error sending email" });
-    } else {
-      res.status(200).send({ message: "Email sent" });
-    }
-  });
+  try {
+    GmailService.transporter.sendMail(mailOptions, (err, data) => {
+      if (err) {
+        console.log(err);
+        throw err;
+      }
+    });
+  } catch (e) {}
 };
 
 exports.getDepartments = (req, res) => {
