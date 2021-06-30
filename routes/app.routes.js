@@ -61,6 +61,12 @@ module.exports = function (app) {
   );
 
   app.post(
+    "/api/updatedepartment",
+    [authJwt.verifyToken],
+    controller.departmentsUpdate
+  );
+
+  app.post(
     "/api/updateapproval",
     [authJwt.verifyToken],
     controller.updateApproval

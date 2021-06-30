@@ -58,7 +58,6 @@ exports.getApproversWithoutMod = (req, res) => {
         console.log(err);
         res.status(500).send({ message: err });
       } else {
-        console.log("success");
         res.status(200).send(approvers);
       }
     });
@@ -130,6 +129,14 @@ exports.getAllApprovalRequests = (req, res) => {
         });
         break;
       case 3:
+        getApprovalRequestsfromDB(req, res, {
+          date_submitted: {
+            $gte: req.body.min_date,
+            $lt: req.body.max_date,
+          },
+        });
+        break;
+      case 4:
         getApprovalRequestsfromDB(req, res, {
           date_submitted: {
             $gte: req.body.min_date,
@@ -209,14 +216,32 @@ exports.getApprovalRequest = (req, res) => {
 };
 
 exports.updateApproval = (req, res) => {
+  // check current_stage
   ApprovalRequests.findOne({ _id: req.body.request_id })
-    .select("approval form final_approval")
+    .select("approval form final_approval current_stage stages")
     .populate("approval")
     .populate("form")
     .exec((err, request) => {
+      const form = request.form;
+      let approvals = [];
+      request.approval.map((a) => {
+        approvals.push(a._id);
+      });
+
       if (err) {
         res.status(500).send({ message: err });
       } else {
+        let next_stage = 1;
+        if (request.current_stage == 1) {
+          console.log("moving to stage 2");
+          next_stage = 2;
+        } else if (request.current_stage == 2) {
+          console.log("moving to stage 3");
+          next_stage = 3;
+        } else if (request.current_stage == 3) {
+          next_stage = 0;
+        }
+
         for (let app of request.approval) {
           if (app.approver == req.body.approver) {
             const now = new Date();
@@ -238,9 +263,12 @@ exports.updateApproval = (req, res) => {
                     .send({ message: "Unable to update approval" });
                 } else {
                   // update if final
+
+                  // return true if app.approver is in finals array.
                   const isInArr = request.form.finals.some((a) => {
                     return a.equals(app.approver);
                   });
+
                   if (request.final_approval == 0 && isInArr) {
                     ApprovalRequests.findByIdAndUpdate(
                       req.body.request_id,
@@ -270,6 +298,69 @@ exports.updateApproval = (req, res) => {
             );
           }
         }
+
+        if (next_stage != 0) {
+          let current_stage = request.stages[next_stage];
+
+          if (current_stage.length != 0) {
+            Approvers.find({})
+              .populate("role")
+              .exec((err, res_approvers) => {
+                let approvers = [];
+                res_approvers.map((a) => {
+                  current_stage.map((s) => {
+                    if (a.role.level == s) {
+                      approvers.push(a._id);
+                    }
+                  });
+                });
+
+                console.log("Found next approvers: " + approvers);
+
+                createApprovals(approvers)
+                  .then((return_val) => {
+                    return_val.map((ret) => {
+                      approvals.push(ret);
+                    });
+
+                    ApprovalRequests.findByIdAndUpdate(
+                      req.body.request_id,
+                      {
+                        $set: {
+                          current_stage: next_stage,
+                          approval: approvals,
+                        },
+                      },
+                      (change_err, change_resp) => {
+                        if (change_err) {
+                          console.log(change_err);
+                        } else {
+                          getApproverEmails(return_val).then(
+                            (ret_approvers) => {
+                              for (let a of ret_approvers) {
+                                if (a) {
+                                  console.log("sending email to " + a);
+                                  sendMail(
+                                    a,
+                                    "AspenForms: Approval Requested",
+                                    process.env.APP_BASE_URL +
+                                      "/form/" +
+                                      form._id
+                                  );
+                                }
+                              }
+                            }
+                          );
+                        }
+                      }
+                    );
+                  })
+                  .catch((e) => {
+                    res.status(401).send({ message: e });
+                  });
+              });
+          }
+        }
       }
     });
 };
@@ -277,43 +368,82 @@ exports.updateApproval = (req, res) => {
 exports.sendForm = (req, res) => {
   const approvals = req.body.approval;
 
-  createApprovals(approvals)
-    .then((return_val) => {
-      const body = {
-        fields: req.body.fields,
-        filled_by: req.body.filled_by,
-        form_title: req.body.form_title,
-        approval: return_val,
-        form: req.body.form_id,
-        department: req.body.department,
-      };
+  // create approval request.
 
-      ApprovalRequests.create(body, (check_keys = false)).then((resp) => {
-        res.status(200).send({ message: "Submitted request successfully!" });
+  // get stage 1.
+  Forms.find({ _id: req.body.form_id })
+    .select("stages")
+    .exec((err, res_form) => {
+      console.log(res_form);
+      let current_stage = res_form[0].stages["1"];
+      if (current_stage.length == 0) {
+        current_stage = res_form[0].stages["2"];
+        if (current_stage.length == 0) {
+          current_stage = res_form[0].stages["3"];
+        }
+      }
 
-        Forms.findByIdAndUpdate(req.body.form_id, {
-          $inc: { counter: 1 },
-        }).exec();
+      Approvers.find({})
+        .populate("role")
+        .exec((err, res_approvers) => {
+          let approvers = [];
+          res_approvers.map((a) => {
+            current_stage.map((s) => {
+              if (a.role.level == s) {
+                approvers.push(a._id);
+              }
+            });
+          });
 
-        getApproverEmails(resp.approval).then((ret_approvers) => {
-          console.log(ret_approvers);
-          for (let a of ret_approvers) {
-            if (a) {
-              console.log("sending email to " + a);
-              sendMail(
-                a,
-                "AspenForms: Approval Requested",
-                process.env.APP_BASE_URL + "/form/" + resp._id
+          console.log("Found stage 1 approvers: " + approvers);
+
+          createApprovals(approvers)
+            .then((return_val) => {
+              const body = {
+                fields: req.body.fields,
+                filled_by: req.body.filled_by,
+                form_title: req.body.form_title,
+                approval: return_val,
+                form: req.body.form_id,
+                department: req.body.department,
+                stages: res_form[0].stages,
+                current_stage: 1,
+              };
+
+              ApprovalRequests.create(body, (check_keys = false)).then(
+                (resp) => {
+                  res
+                    .status(200)
+                    .send({ message: "Submitted request successfully!" });
+
+                  // Forms.findByIdAndUpdate(req.body.form_id, {
+                  //   $inc: { counter: 1 },
+                  // }).exec();
+
+                  getApproverEmails(resp.approval).then((ret_approvers) => {
+                    console.log(ret_approvers);
+                    for (let a of ret_approvers) {
+                      if (a) {
+                        console.log("sending email to " + a);
+                        sendMail(
+                          a,
+                          "AspenForms: Approval Requested",
+                          process.env.APP_BASE_URL + "/form/" + resp._id
+                        );
+                      }
+                    }
+                  });
+                  // ** send mail here **
+                }
               );
-            }
-          }
+            })
+            .catch((e) => {
+              res.status(401).send({ message: e });
+            });
         });
-        // ** send mail here **
-      });
-    })
-    .catch((e) => {
-      res.status(401).send({ message: e });
     });
+  // get [stage1] approvals
+  // create approvals
 };
 
 let createApprovals = async (approvals) => {
@@ -405,6 +535,26 @@ let getApproverEmails = async (approval_request) => {
   }
 };
 
+// let get_approvers = async (criteria) => {
+//   let return_val = [];
+
+//   try {
+//     for (let a of approver_ids) {
+//       console.log(a);
+//       let action = await Approvers.find(criteria).populate("role").exec();
+
+//       // && email enabled
+//       if (action[0].approver.email) {
+//         return_val.push(action[0].approver.email);
+//       }
+//     }
+
+//     return return_val;
+//   } catch (e) {
+//     return e;
+//   }
+// };
+
 let sendMail = async (receiver, subject, link) => {
   let mailOptions = {
     from: "aspenforms@ke.betashelys.com",
@@ -439,16 +589,36 @@ exports.getDepartments = (req, res) => {
 };
 
 exports.createDepartment = (req, res) => {
-  if (req.body.name) {
-    Departments.create(req.body, (check_keys = false))
+  if (req.body.data) {
+    console.log(req.body);
+    Departments.create(req.body.data, (check_keys = false))
       .then(() => {
         res.status(200).send({ message: "Department created successfully!" });
       })
       .catch((e) => {
         res.status(500).send({ message: e });
       });
-  } else {
-    res.status(500).send({ message: "Invalid data!" });
+  }
+};
+
+exports.departmentsUpdate = (req, res) => {
+  if (req.body.data) {
+    console.log(req.body);
+    let error = false;
+    for (let dep of req.body.data) {
+      Departments.findByIdAndUpdate(dep.id, { $set: { name: dep.name } }).exec(
+        (err, resp) => {
+          if (err) {
+            error = true;
+          }
+        }
+      );
+    }
+    if (error) {
+      res.status(500).send({ message: "Error!" });
+    } else {
+      res.status(200).send({ message: "Departments updated!" });
+    }
   }
 };
 
@@ -545,6 +715,7 @@ exports.updateForm = (req, res) => {
     $set: {
       name: req.body.name,
       fields: req.body.fields,
+      stages: req.body.stages,
     },
   }).exec((err, resp) => {
     if (err) {

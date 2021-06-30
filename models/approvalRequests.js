@@ -31,6 +31,7 @@ const FieldsSchema = new Schema({
   field_id: Schema.Types.ObjectId,
   name: String,
   value: String,
+  type: Object,
 });
 
 const ApprovalRequestsSchema = new Schema({
@@ -43,6 +44,8 @@ const ApprovalRequestsSchema = new Schema({
   date_submitted: { type: Date, default: Date.now },
   final_approval: { type: Number, default: 0 },
   approval_date: { type: Date, default: null },
+  current_stage: { type: Number, default: 1 },
+  stages: Object,
 });
 
 // const ApprovalRequestsSchema = new Schema({

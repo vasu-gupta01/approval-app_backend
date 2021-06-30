@@ -18,6 +18,7 @@ const FormsSchema = new Schema({
   finals: [{ type: Schema.Types.ObjectId, ref: "approvers" }],
   date_created: { type: Date, default: Date.now },
   counter: Number,
+  stages: Object,
 });
 
 const Forms = mongoose.model("forms", FormsSchema);
