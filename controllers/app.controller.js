@@ -224,8 +224,10 @@ exports.updateApproval = (req, res) => {
     .exec((err, request) => {
       const form = request.form;
       let approvals = [];
+      let existing_approvers = [];
       request.approval.map((a) => {
         approvals.push(a._id);
+        existing_approvers.push(String(a.approver));
       });
 
       if (err) {
@@ -315,7 +317,9 @@ exports.updateApproval = (req, res) => {
                   });
                 });
 
-                console.log("Found next approvers: " + approvers);
+                approvers = approvers.filter((value, index, arr) => {
+                  return !existing_approvers.includes(String(value));
+                });
 
                 createApprovals(approvers)
                   .then((return_val) => {
@@ -374,7 +378,6 @@ exports.sendForm = (req, res) => {
   Forms.find({ _id: req.body.form_id })
     .select("stages")
     .exec((err, res_form) => {
-      console.log(res_form);
       let current_stage = res_form[0].stages["1"];
       if (current_stage.length == 0) {
         current_stage = res_form[0].stages["2"];
@@ -384,12 +387,26 @@ exports.sendForm = (req, res) => {
       }
 
       Approvers.find({})
-        .populate("role")
+        .populate({
+          path: "role",
+          populate: { path: "department" },
+        })
         .exec((err, res_approvers) => {
           let approvers = [];
           res_approvers.map((a) => {
+            if (
+              a.role.department &&
+              String(a.role.department.name) == String(req.body.department)
+            ) {
+              approvers.push(a._id);
+            }
             current_stage.map((s) => {
-              if (a.role.level == s) {
+              if (
+                a.role.department &&
+                a.role.level == s &&
+                a.role.level != 1 &&
+                String(a.role.department.name) != String(req.body.department)
+              ) {
                 approvers.push(a._id);
               }
             });
@@ -405,7 +422,7 @@ exports.sendForm = (req, res) => {
                 form_title: req.body.form_title,
                 approval: return_val,
                 form: req.body.form_id,
-                department: req.body.department,
+                department: req.body.department.name,
                 stages: res_form[0].stages,
                 current_stage: 1,
               };
