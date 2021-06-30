@@ -422,7 +422,7 @@ exports.sendForm = (req, res) => {
                 form_title: req.body.form_title,
                 approval: return_val,
                 form: req.body.form_id,
-                department: req.body.department.name,
+                department: req.body.department,
                 stages: res_form[0].stages,
                 current_stage: 1,
               };
