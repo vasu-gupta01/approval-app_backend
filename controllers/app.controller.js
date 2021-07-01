@@ -541,7 +541,7 @@ let getApproverEmails = async (approval_request) => {
         .exec();
 
       // && email enabled
-      if (action[0].approver.email) {
+      if (action[0].approver.email && action[0].approver.email != "") {
         return_val.push(action[0].approver.email);
       }
     }
@@ -689,6 +689,7 @@ exports.updateApprover = (req, res) => {
         lastname: req.body.lastname,
         password: bcrypt.hashSync(req.body.password, 8),
         role: req.body.role,
+        email: req.body.email,
       };
     } else {
       body = {
@@ -696,6 +697,7 @@ exports.updateApprover = (req, res) => {
         firstname: req.body.firstname,
         lastname: req.body.lastname,
         role: req.body.role,
+        email: req.body.email,
       };
     }
 
