@@ -34,6 +34,14 @@ const FieldsSchema = new Schema({
   type: Object,
 });
 
+const ViewerFieldsSchema = new Schema({
+  field_id: Schema.Types.ObjectId,
+  name: String,
+  value: String,
+  filled: { type: Boolean, default: false },
+  type: Object,
+});
+
 const ApprovalRequestsSchema = new Schema({
   serial_number: String,
   fields: [FieldsSchema],
@@ -46,6 +54,7 @@ const ApprovalRequestsSchema = new Schema({
   approval_date: { type: Date, default: null },
   current_stage: { type: Number, default: 1 },
   stages: Object,
+  viewer_fields: [ViewerFieldsSchema],
 });
 
 // const ApprovalRequestsSchema = new Schema({

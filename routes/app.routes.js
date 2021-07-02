@@ -23,7 +23,17 @@ module.exports = function (app) {
 
   app.get("/api/getforms", controller.getAllForms);
 
+  app.post("/api/getviewerfields", controller.getViewerFields);
+
   app.get("/api/getfieldtypes", controller.getFieldTypes);
+
+  app.get("/api/getviewerfieldtypes", controller.getViewerFieldTypes);
+
+  app.post(
+    "/api/updaterequestviewerfields",
+    [authJwt.verifyToken],
+    controller.updateApprovalViewerFields
+  );
 
   app.post(
     "/api/getapprovalrequests",

@@ -5,6 +5,7 @@ const GmailService = require("../services/gmail-service");
 const { resolveContent } = require("nodemailer/lib/shared");
 const Forms = db.formModels.Forms;
 const Fields = db.formModels.FieldTypes;
+const ViewerFields = db.formModels.ViewerFieldTypes;
 const ApprovalRequests = db.approvalModels.ApprovalRequests;
 const Approvals = db.approvalModels.Approvals;
 const Approvers = db.approverModels.Approvers;
@@ -12,6 +13,7 @@ const Roles = db.approverModels.Roles;
 const Departments = db.approverModels.Departments;
 
 var bcrypt = require("bcryptjs");
+const { ViewerFieldTypes } = require("../models/forms");
 
 exports.getAllForms = (req, res) => {
   // Forms.find({}).then((data) => res.json(data));
@@ -153,7 +155,9 @@ exports.getAllApprovalRequests = (req, res) => {
 
 let getApprovalRequestsfromDB = async (req, res, criteria) => {
   await ApprovalRequests.find(criteria)
-    .select("filled_by approval form date_submitted")
+    .select(
+      "filled_by approval form date_submitted viewer_fields fields final_approval approval_date"
+    )
     .populate("form", "name")
     .populate({
       path: "approval",
@@ -173,7 +177,9 @@ exports.getApprovalRequest = (req, res) => {
   ApprovalRequests.findOne({
     _id: req.body.id,
   })
-    .select("filled_by fields form approval date_submitted department")
+    .select(
+      "filled_by fields viewer_fields form approval date_submitted department"
+    )
     .populate("approval")
     .populate("form")
     .exec((err, data) => {
@@ -193,6 +199,7 @@ exports.getApprovalRequest = (req, res) => {
           const send_data = {
             filled_by: data.filled_by,
             fields: data.fields,
+            viewer_fields: data.viewer_fields,
             form: data.form,
             approval: approver,
             date_submitted: data.date_submitted,
@@ -204,6 +211,7 @@ exports.getApprovalRequest = (req, res) => {
           const send_data = {
             filled_by: data.filled_by,
             fields: data.fields,
+            viewer_fields: data.viewer_fields,
             form: data.form,
             approval: null,
             date_submitted: data.date_submitted,
@@ -757,4 +765,53 @@ exports.createForm = (req, res) => {
   } else {
     res.status(500).send("Invalid Data!");
   }
+};
+
+exports.getViewerFields = (req, res) => {
+  if (req.body) {
+    Forms.findOne({
+      _id: req.body.id,
+    })
+      .populate("viewer_fields.type")
+      .exec((err, form) => {
+        if (err) {
+          console.log(err);
+          res.status(500).send({ message: err });
+        } else {
+          let body = {};
+          console.log(form);
+          if (form) {
+            body = {
+              viewer_fields: form.viewer_fields,
+            };
+          }
+          res.status(200).send(body);
+        }
+      });
+  } else {
+    res.status(500).send("Invalid Data!");
+  }
+};
+
+exports.getViewerFieldTypes = (req, res) => {
+  ViewerFieldTypes.find({}).exec((err, resp) => {
+    if (err) {
+      res.status(500).send({ message: err });
+    } else {
+      res.status(200).send(resp);
+    }
+  });
+};
+
+exports.updateApprovalViewerFields = (req, res) => {
+  // check current_stage
+  ApprovalRequests.findByIdAndUpdate(req.body.request_id, {
+    $set: { viewer_fields: req.body.viewer_fields },
+  }).exec((err, request) => {
+    if (err) {
+      res.status(500).send({ message: err });
+    } else {
+      res.status(200).send({ message: "Viewer Field Updated!" });
+    }
+  });
 };
